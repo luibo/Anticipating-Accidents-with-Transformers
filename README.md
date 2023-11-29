@@ -1,20 +1,19 @@
-# Anticipating Accidents in Dashcam Videos
-By Fu-Hsiang Chan, Yu-Ting Chen, Yu Xiang, Min Sun.
+# Anticipating Accidents in Dashcam Videos (Transformers approach)
+
 
 ### Introduction
 
 Anticipating Accidents in Dashcam Videos is initially described in a [ACCV 2016 paper](https://drive.google.com/file/d/0ByuDEGFYmWsbNkVxcUxhdDRVRkU/view?usp=sharing&resourcekey=0-RsYavk2HgV_D-RXpUF7NEg).
-We propose a Dynamic-Spatial-Attention (DSA) Recurrent Neural Network (RNN) for anticipating accidents in dashcam videos.
+This fork of the original project (from Fu-Hsiang Chan, Yu-Ting Chen, Yu Xiang, Min Sun) tries to implement a transformer in the model.
 
 ### Requirements
 
-##### Tensoflow 1.x
-##### Opencv 2.4.9
+##### Tensoflow 2.x
+##### Opencv
 ##### Matplotlib
 ##### Numpy
 
 ### Model Flowchart
-![Alt text](./img/flowchart.png "Optional title")
 
 
 ### Dataset & Features
@@ -34,29 +33,7 @@ The format of annotation:
 ### Usage
 
 #### Run Demo
-```
-python accident.py --model ./demo_model/demo_model
-```
 
 #### Training
-```
-python accident.py --mode train --gpu gpu_id
-```
 
 #### Testing
-```
-python accident.py --mode test --model model_path --gpu gpu_id
-```
-
-### Citing
-
-Please cite this paper in your publications if you use this code for your research:
-
-    @inproceedings{chan2016anticipating,
-        title={Anticipating accidents in dashcam videos},
-        author={Chan, Fu-Hsiang and Chen, Yu-Ting and Xiang, Yu and Sun, Min},
-        booktitle={Asian Conference on Computer Vision},
-        pages={136--153},
-        year={2016},
-        organization={Springer}
-    }
