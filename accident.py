@@ -1,5 +1,4 @@
 import cv2
-import tensorflow as tf
 import argparse
 import numpy as np
 import os
@@ -7,27 +6,26 @@ import pdb
 import time
 import matplotlib.pyplot as plt
 import sys
+import logging, os
+
+logging.disable(logging.WARNING)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 ############### Global Parameters ###############
 # path
-train_path = './dataset/features/training/'
-test_path = './dataset/features/testing/'
-demo_path = './dataset/features/testing/'
+train_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/features/training/'
+test_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/features/testing/'
+demo_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/features/testing/'
 default_model_path = './model/demo_model'
 save_path = './model/'
-video_path = './dataset/videos/testing/positive/'
+video_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/videos/testing/positive/'
+
 # batch_number
 train_num = 126
 test_num = 46
-
-
-############## Train Parameters #################
-
-# Parameters
-learning_rate = 0.0001
-n_epochs = 30
-batch_size = 10
-display_step = 10
 
 # Network Parameters
 n_input = 4096 # fc6 or fc7(1*4096)
@@ -36,8 +34,13 @@ n_hidden = 512 # hidden layer num of LSTM
 n_img_hidden = 256 # embedding image features 
 n_att_hidden = 256 # embedding object features
 n_classes = 2 # has accident or not
-n_frames = 100 # number of frame in each video 
-##################################################
+n_frames = 100 # number of frame in each video
+
+# Parameters
+learning_rate = 0.0001
+n_epochs = 30
+batch_size = 10
+display_step = 10
 
 def parse_args():
     """Parse input arguments."""
@@ -51,8 +54,7 @@ def parse_args():
 
 
 def build_model():
-
-    # tf Graph input
+     # tf Graph input
     x = tf.placeholder("float", [None, n_frames ,n_detection, n_input])
     y = tf.placeholder("float", [None, n_classes])
     keep = tf.placeholder("float",[None])
@@ -74,7 +76,7 @@ def build_model():
     }
 
     # Define a lstm cell with tensorflow
-    lstm_cell = tf.contrib.rnn.LSTMCell(n_hidden,initializer= tf.random_normal_initializer(mean=0.0,stddev=0.01),use_peepholes = True,state_is_tuple = False)
+    lstm_cell = tf.nn.rnn_cell.LSTMCell(n_hidden,initializer= tf.random_normal_initializer(mean=0.0,stddev=0.01),use_peepholes = True,state_is_tuple = False)
     # using dropout in output of LSTM
     lstm_cell_dropout = tf.nn.rnn_cell.DropoutWrapper(lstm_cell,output_keep_prob=1 - keep[0])
     # init LSTM parameters
@@ -140,6 +142,7 @@ def build_model():
 
     return x,keep,y,optimizer,loss,lstm_variables,soft_pred,all_alphas
 
+
 def train():
     # build model
     x,keep,y,optimizer,loss,lstm_variables,soft_pred,all_alphas = build_model()
@@ -169,17 +172,17 @@ def train():
              _,batch_loss = sess.run([optimizer,loss], feed_dict={x: batch_xs, y: batch_ys, keep: [0.5]})
              epoch_loss[batch-1] = batch_loss/batch_size
          # print one epoch
-         print "Epoch:", epoch+1, " done. Loss:", np.mean(epoch_loss)
+         print("Epoch:", epoch+1, " done. Loss:", np.mean(epoch_loss))
          tStop_epoch = time.time()
-         print "Epoch Time Cost:", round(tStop_epoch - tStart_epoch,2), "s"
+         print("Epoch Time Cost:", round(tStop_epoch - tStart_epoch,2), "s")
          sys.stdout.flush()
          if (epoch+1) %5 == 0:
             saver.save(sess,save_path+"model", global_step = epoch+1)
-            print "Training"
+            print("Training")
             test_all(sess,train_num,train_path,x,keep,y,loss,lstm_variables,soft_pred)
-            print "Testing"
+            print("Testing")
             test_all(sess,test_num,test_path,x,keep,y,loss,lstm_variables,soft_pred)
-    print "Optimization Finished!"
+    print("Optimization Finished!")
     saver.save(sess, save_path+"final_model")
 
 def test_all(sess,num,path,x,keep,y,loss,lstm_variables,soft_pred):
@@ -276,10 +279,10 @@ def evaluation(all_pred,all_labels, total_time = 90, vis = False, length = None)
     for i in range(1,len(new_Precision)):
         AP += (new_Precision[i-1]+new_Precision[i])*(new_Recall[i]-new_Recall[i-1])/2
 
-    print "Average Precision= " + "{:.4f}".format(AP) + " ,mean Time to accident= " +"{:.4}".format(np.mean(new_Time) * 5)
+    print("Average Precision= " + "{:.4f}".format(AP) + " ,mean Time to accident= " +"{:.4}".format(np.mean(new_Time) * 5))
     sort_time = new_Time[np.argsort(new_Recall)]
     sort_recall = np.sort(new_Recall)
-    print "Recall@80%, Time to accident= " +"{:.4}".format(sort_time[np.argmin(np.abs(sort_recall-0.8))] * 5)
+    print("Recall@80%, Time to accident= " +"{:.4}".format(sort_time[np.argmin(np.abs(sort_recall-0.8))] * 5))
 
     ### visualize
 
@@ -325,16 +328,16 @@ def vis(model_path):
         for i in range(len(ID)):
             if labels[i][1] == 1 :
                 plt.figure(figsize=(14,5))
-                plt.plot(pred[i,0:90],linewidth=3.0)
+                plt.plot(pred[i, 0:90], linewidth = 3.0)
                 plt.ylim(0, 1)
                 plt.ylabel('Probability')
                 plt.xlabel('Frame')
                 plt.show()
                 file_name = ID[i]
                 bboxes = det[i]
-                new_weight = weight[:,:,i]*255
-                counter = 0 
-                cap = cv2.VideoCapture(video_path+file_name+'.mp4') 
+                new_weight = weight[:,:,i] * 255
+                counter = 0
+                cap = cv2.VideoCapture(video_path + file_name.decode('utf-8') + '.mp4')
                 ret, frame = cap.read()
                 while(ret):
                     attention_frame = np.zeros((frame.shape[0],frame.shape[1]),dtype = np.uint8)
@@ -342,13 +345,13 @@ def vis(model_path):
                     new_bboxes = bboxes[counter,:,:]
                     index = np.argsort(now_weight)
                     for num_box in index:
-                        if now_weight[num_box]/255.0>0.4:
-                            cv2.rectangle(frame,(new_bboxes[num_box,0],new_bboxes[num_box,1]),(new_bboxes[num_box,2],new_bboxes[num_box,3]),(0,255,0),3)
+                        if now_weight[num_box] / 255.0 > 0.4:
+                            cv2.rectangle(np.array(frame), (new_bboxes[num_box,0].astype(int), new_bboxes[num_box,1].astype(int)), (new_bboxes[num_box, 2].astype(int), new_bboxes[num_box, 3].astype(int)), (0, 255, 0), 3)
                         else:
-                            cv2.rectangle(frame,(new_bboxes[num_box,0],new_bboxes[num_box,1]),(new_bboxes[num_box,2],new_bboxes[num_box,3]),(255,0,0),2)
+                            cv2.rectangle(np.array(frame), (new_bboxes[num_box,0].astype(int), new_bboxes[num_box,1].astype(int)), (new_bboxes[num_box, 2].astype(int), new_bboxes[num_box, 3].astype(int)), (255, 0, 0), 2)
                         font = cv2.FONT_HERSHEY_SIMPLEX
-                        cv2.putText(frame,str(round(now_weight[num_box]/255.0*10000)/10000),(new_bboxes[num_box,0],new_bboxes[num_box,1]), font, 0.5,(0,0,255),1,cv2.CV_AA)
-                        attention_frame[int(new_bboxes[num_box,1]):int(new_bboxes[num_box,3]),int(new_bboxes[num_box,0]):int(new_bboxes[num_box,2])] = now_weight[num_box]
+                        cv2.putText(frame, str(round(now_weight[num_box] / 255.0 * 10000) / 10000), (new_bboxes[num_box, 0].astype(int), new_bboxes[num_box, 1].astype(int)), font, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+                        attention_frame[int(new_bboxes[num_box, 1]):int(new_bboxes[num_box, 3]), int(new_bboxes[num_box, 0]):int(new_bboxes[num_box, 2])] = now_weight[num_box]
 
                     attention_frame = cv2.applyColorMap(attention_frame, cv2.COLORMAP_HOT)
                     dst = cv2.addWeighted(frame,0.6,attention_frame,0.4,0)
@@ -357,7 +360,7 @@ def vis(model_path):
                     c = cv2.waitKey(50)
                     ret, frame = cap.read()
                     if c == ord('q') and c == 27 and ret:
-                        break;
+                        break
                     counter += 1
               
             cv2.destroyAllWindows()
@@ -374,12 +377,11 @@ def test(model_path):
     sess.run(init)
     saver = tf.train.Saver()
     saver.restore(sess, model_path)
-    print "model restore!!!"
-    print "Training"
+    print("model restore!!!")
+    print("Training")
     test_all(sess,train_num,train_path,x,keep,y,loss,lstm_variables,soft_pred)
-    print "Testing"
+    print("Testing")
     test_all(sess,test_num,test_path,x,keep,y,loss,lstm_variables,soft_pred)
-
 
 
 if __name__ == '__main__':
@@ -387,7 +389,7 @@ if __name__ == '__main__':
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     else:
-        os.environ['CUDA_VISIBLE_DEVICES'] = '0' 
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     if args.mode == 'train':
            train()
@@ -395,3 +397,5 @@ if __name__ == '__main__':
            test(args.model)
     elif args.mode == 'demo':
            vis(args.model)
+
+
