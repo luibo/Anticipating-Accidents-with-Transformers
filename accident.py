@@ -2,16 +2,18 @@ import cv2
 import argparse
 import numpy as np
 import os
-import pdb
 import time
 import matplotlib.pyplot as plt
 import sys
 import logging, os
+import utilities as utils
+from transformer import Transformer
 
 logging.disable(logging.WARNING)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-import tensorflow.compat.v1 as tf
+import tensorflow.compat.v1 as tf1
+import tensorflow as tf
 tf.disable_v2_behavior()
 
 ############### Global Parameters ###############
@@ -42,6 +44,13 @@ n_epochs = 30
 batch_size = 10
 display_step = 10
 
+# Transformer parameters
+num_layers = 4
+d_model = 128
+dff = 512
+num_heads = 8
+dropout_rate = 0.1
+
 def parse_args():
     """Parse input arguments."""
     parser = argparse.ArgumentParser(description='accident_LSTM')
@@ -53,92 +62,92 @@ def parse_args():
     return args
 
 
-def build_model():
-     # tf Graph input
-    x = tf.placeholder("float", [None, n_frames ,n_detection, n_input])
-    y = tf.placeholder("float", [None, n_classes])
-    keep = tf.placeholder("float",[None])
+def build_model_old():
+        # tf Graph input
+    x = tf1.placeholder("float", [None, n_frames ,n_detection, n_input])
+    y = tf1.placeholder("float", [None, n_classes])
+    keep = tf1.placeholder("float",[None])
 
     # Define weights
     weights = {
-        'em_obj': tf.Variable(tf.random_normal([n_input,n_att_hidden], mean=0.0, stddev=0.01)),
-        'em_img': tf.Variable(tf.random_normal([n_input,n_img_hidden], mean=0.0, stddev=0.01)),
-        'att_w': tf.Variable(tf.random_normal([n_att_hidden, 1], mean=0.0, stddev=0.01)),
-        'att_wa': tf.Variable(tf.random_normal([n_hidden, n_att_hidden], mean=0.0, stddev=0.01)),
-        'att_ua': tf.Variable(tf.random_normal([n_att_hidden, n_att_hidden], mean=0.0, stddev=0.01)),
-        'out': tf.Variable(tf.random_normal([n_hidden, n_classes], mean=0.0, stddev=0.01))
+        'em_obj': tf1.Variable(tf1.random_normal([n_input,n_att_hidden], mean=0.0, stddev=0.01)),
+        'em_img': tf1.Variable(tf1.random_normal([n_input,n_img_hidden], mean=0.0, stddev=0.01)),
+        'att_w': tf1.Variable(tf1.random_normal([n_att_hidden, 1], mean=0.0, stddev=0.01)),
+        'att_wa': tf1.Variable(tf1.random_normal([n_hidden, n_att_hidden], mean=0.0, stddev=0.01)),
+        'att_ua': tf1.Variable(tf1.random_normal([n_att_hidden, n_att_hidden], mean=0.0, stddev=0.01)),
+        'out': tf1.Variable(tf1.random_normal([n_hidden, n_classes], mean=0.0, stddev=0.01))
     }
     biases = {
-        'em_obj': tf.Variable(tf.random_normal([n_att_hidden], mean=0.0, stddev=0.01)),
-        'em_img': tf.Variable(tf.random_normal([n_img_hidden], mean=0.0, stddev=0.01)),
-        'att_ba': tf.Variable(tf.zeros([n_att_hidden])),
-        'out': tf.Variable(tf.random_normal([n_classes], mean=0.0, stddev=0.01))
+        'em_obj': tf1.Variable(tf1.random_normal([n_att_hidden], mean=0.0, stddev=0.01)),
+        'em_img': tf1.Variable(tf1.random_normal([n_img_hidden], mean=0.0, stddev=0.01)),
+        'att_ba': tf1.Variable(tf1.zeros([n_att_hidden])),
+        'out': tf1.Variable(tf1.random_normal([n_classes], mean=0.0, stddev=0.01))
     }
 
     # Define a lstm cell with tensorflow
-    lstm_cell = tf.nn.rnn_cell.LSTMCell(n_hidden,initializer= tf.random_normal_initializer(mean=0.0,stddev=0.01),use_peepholes = True,state_is_tuple = False)
+    lstm_cell = tf1.nn.rnn_cell.LSTMCell(n_hidden,initializer= tf1.random_normal_initializer(mean=0.0,stddev=0.01),use_peepholes = True,state_is_tuple = False)
     # using dropout in output of LSTM
-    lstm_cell_dropout = tf.nn.rnn_cell.DropoutWrapper(lstm_cell,output_keep_prob=1 - keep[0])
+    lstm_cell_dropout = tf1.nn.rnn_cell.DropoutWrapper(lstm_cell,output_keep_prob=1 - keep[0])
     # init LSTM parameters
-    istate = tf.zeros([batch_size, lstm_cell.state_size])
-    h_prev = tf.zeros([batch_size, n_hidden])
+    istate = tf1.zeros([batch_size, lstm_cell.state_size])
+    h_prev = tf1.zeros([batch_size, n_hidden])
     # init loss 
     loss = 0.0  
     # Mask 
-    zeros_object = tf.to_float(tf.not_equal(tf.reduce_sum(tf.transpose(x[:,:,1:n_detection,:],[1,2,0,3]),3),0)) # frame x n x b
+    zeros_object = tf1.to_float(tf1.not_equal(tf1.reduce_sum(tf1.transpose(x[:,:,1:n_detection,:],[1,2,0,3]),3),0)) # frame x n x b
     # Start creat graph
     for i in range(n_frames):
-      with tf.variable_scope('model',reuse=tf.AUTO_REUSE):
+      with tf1.variable_scope('model',reuse=tf1.AUTO_REUSE):
         # input features (Faster-RCNN fc7)
-        X = tf.transpose(x[:,i,:,:], [1, 0, 2])  # permute n_steps and batch_size (n x b x h)
+        X = tf1.transpose(x[:,i,:,:], [1, 0, 2])  # permute n_steps and batch_size (n x b x h)
         # frame embedded
-        image = tf.matmul(X[0,:,:],weights['em_img']) + biases['em_img'] # 1 x b x h
+        image = tf1.matmul(X[0,:,:],weights['em_img']) + biases['em_img'] # 1 x b x h
         # object embedded
-        n_object = tf.reshape(X[1:n_detection,:,:], [-1, n_input]) # (n_steps*batch_size, n_input)
-        n_object = tf.matmul(n_object, weights['em_obj']) + biases['em_obj'] # (n x b) x h
-        n_object = tf.reshape(n_object,[n_detection-1,batch_size,n_att_hidden]) # n-1 x b x h
-        n_object = tf.multiply(n_object,tf.expand_dims(zeros_object[i],2))
+        n_object = tf1.reshape(X[1:n_detection,:,:], [-1, n_input]) # (n_steps*batch_size, n_input)
+        n_object = tf1.matmul(n_object, weights['em_obj']) + biases['em_obj'] # (n x b) x h
+        n_object = tf1.reshape(n_object,[n_detection-1,batch_size,n_att_hidden]) # n-1 x b x h
+        n_object = tf1.multiply(n_object,tf1.expand_dims(zeros_object[i],2))
 
         # object attention
-        brcst_w = tf.tile(tf.expand_dims(weights['att_w'], 0), [n_detection-1,1,1]) # n x h x 1
-        image_part = tf.matmul(n_object, tf.tile(tf.expand_dims(weights['att_ua'], 0), [n_detection-1,1,1])) + biases['att_ba'] # n x b x h
-        e = tf.tanh(tf.matmul(h_prev,weights['att_wa'])+image_part) # n x b x h
+        brcst_w = tf1.tile(tf1.expand_dims(weights['att_w'], 0), [n_detection-1,1,1]) # n x h x 1
+        image_part = tf1.matmul(n_object, tf1.tile(tf1.expand_dims(weights['att_ua'], 0), [n_detection-1,1,1])) + biases['att_ba'] # n x b x h
+        e = tf1.tanh(tf1.matmul(h_prev,weights['att_wa'])+image_part) # n x b x h
         # the probability of each object
-        alphas = tf.multiply(tf.nn.softmax(tf.reduce_sum(tf.matmul(e,brcst_w),2),0),zeros_object[i])
+        alphas = tf1.multiply(tf1.nn.softmax(tf1.reduce_sum(tf1.matmul(e,brcst_w),2),0),zeros_object[i])
         # weighting sum
-        attention_list = tf.multiply(tf.expand_dims(alphas,2),n_object)
-        attention = tf.reduce_sum(attention_list,0) # b x h
+        attention_list = tf1.multiply(tf1.expand_dims(alphas,2),n_object)
+        attention = tf1.reduce_sum(attention_list,0) # b x h
         # concat frame & object
-        fusion = tf.concat([image,attention],1)
+        fusion = tf1.concat([image,attention],1)
 
-        with tf.variable_scope("LSTM") as vs:
+        with tf1.variable_scope("LSTM") as vs:
             outputs,istate = lstm_cell_dropout(fusion,istate)
-            lstm_variables = [v for v in tf.global_variables() if v.name.startswith(vs.name)]
+            lstm_variables = [v for v in tf1.global_variables() if v.name.startswith(vs.name)]
         # save prev hidden state of LSTM
         h_prev = outputs
         # FC to output
-        pred = tf.matmul(outputs,weights['out']) + biases['out'] # b x n_classes
+        pred = tf1.matmul(outputs,weights['out']) + biases['out'] # b x n_classes
         # save the predict of each time step
         if i == 0:
-            soft_pred = tf.reshape(tf.gather(tf.transpose(tf.nn.softmax(pred),(1,0)),1),(batch_size,1))
-            all_alphas = tf.expand_dims(alphas,0)
+            soft_pred = tf1.reshape(tf1.gather(tf1.transpose(tf1.nn.softmax(pred),(1,0)),1),(batch_size,1))
+            all_alphas = tf1.expand_dims(alphas,0)
         else:
-            temp_soft_pred = tf.reshape(tf.gather(tf.transpose(tf.nn.softmax(pred),(1,0)),1),(batch_size,1))
-            soft_pred = tf.concat([soft_pred,temp_soft_pred],1)
-            temp_alphas = tf.expand_dims(alphas,0)
-            all_alphas = tf.concat([all_alphas, temp_alphas],0)
+            temp_soft_pred = tf1.reshape(tf1.gather(tf1.transpose(tf1.nn.softmax(pred),(1,0)),1),(batch_size,1))
+            soft_pred = tf1.concat([soft_pred,temp_soft_pred],1)
+            temp_alphas = tf1.expand_dims(alphas,0)
+            all_alphas = tf1.concat([all_alphas, temp_alphas],0)
 
         # positive example (exp_loss)
-        pos_loss = -tf.multiply(tf.exp(-(n_frames-i-1)/20.0),-tf.nn.softmax_cross_entropy_with_logits(logits = pred, labels = y))
+        pos_loss = -tf1.multiply(tf1.exp(-(n_frames-i-1)/20.0),-tf1.nn.softmax_cross_entropy_with_logits(logits = pred, labels = y))
         # negative example
-        neg_loss = tf.nn.softmax_cross_entropy_with_logits(labels=y, logits = pred) # Softmax loss
+        neg_loss = tf1.nn.softmax_cross_entropy_with_logits(labels=y, logits = pred) # Softmax loss
 
-        temp_loss = tf.reduce_mean(tf.add(tf.multiply(pos_loss,y[:,1]),tf.multiply(neg_loss,y[:,0])))
-        #loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
-        loss = tf.add(loss, temp_loss)
+        temp_loss = tf1.reduce_mean(tf1.add(tf1.multiply(pos_loss,y[:,1]),tf1.multiply(neg_loss,y[:,0])))
+        #loss = tf1.reduce_mean(tf1.nn.softmax_cross_entropy_with_logits(pred, y))
+        loss = tf1.add(loss, temp_loss)
         
     # Define loss and optimizer
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss/n_frames) # Adam Optimizer
+    optimizer = tf1.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss/n_frames) # Adam Optimizer
 
     return x,keep,y,optimizer,loss,lstm_variables,soft_pred,all_alphas
 
@@ -146,16 +155,16 @@ def build_model():
 def train():
     # build model
     x,keep,y,optimizer,loss,lstm_variables,soft_pred,all_alphas = build_model()
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
-    sess = tf.InteractiveSession(config=tf.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options))
+    gpu_options = tf1.GPUOptions(per_process_gpu_memory_fraction=0.2)
+    sess = tf1.InteractiveSession(config=tf1.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options))
     # mkdir folder for saving model
     if os.path.isdir(save_path) == False:
         os.mkdir(save_path)
     # Initializing the variables
-    init = tf.global_variables_initializer()
+    init = tf1.global_variables_initializer()
     # Launch the graph
     sess.run(init)
-    saver = tf.train.Saver(max_to_keep=100)
+    saver = tf1.train.Saver(max_to_keep=100)
     # Keep training until reach max iterations
     # start training
     for epoch in range(n_epochs):
@@ -307,11 +316,11 @@ def evaluation(all_pred,all_labels, total_time = 90, vis = False, length = None)
 def vis(model_path):
     # build model
     x,keep,y,optimizer,loss,lstm_variables,soft_pred,all_alphas = build_model()
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.3)
-    sess = tf.InteractiveSession(config=tf.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options))
-    init = tf.global_variables_initializer()
+    gpu_options = tf1.GPUOptions(per_process_gpu_memory_fraction=0.3)
+    sess = tf1.InteractiveSession(config=tf1.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options))
+    init = tf1.global_variables_initializer()
     sess.run(init)
-    saver = tf.train.Saver()
+    saver = tf1.train.Saver()
     # restore model
     saver.restore(sess, model_path)
     # load data
@@ -371,17 +380,47 @@ def test(model_path):
     # load model
     x,keep,y,optimizer,loss,lstm_variables,soft_pred,all_alphas = build_model()
     # inistal Session
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.3)
-    sess = tf.InteractiveSession(config=tf.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options))
-    init = tf.global_variables_initializer()
+    gpu_options = tf1.GPUOptions(per_process_gpu_memory_fraction=0.3)
+    sess = tf1.InteractiveSession(config=tf1.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options))
+    init = tf1.global_variables_initializer()
     sess.run(init)
-    saver = tf.train.Saver()
+    saver = tf1.train.Saver()
     saver.restore(sess, model_path)
     print("model restore!!!")
     print("Training")
     test_all(sess,train_num,train_path,x,keep,y,loss,lstm_variables,soft_pred)
     print("Testing")
     test_all(sess,test_num,test_path,x,keep,y,loss,lstm_variables,soft_pred)
+
+
+
+def get_model():
+    transformer = Transformer(
+        num_layers=num_layers,
+        d_model=d_model,
+        num_heads=num_heads,
+        dff=dff,
+        input_vocab_size=0,
+        target_vocab_size=0,
+        dropout_rate=dropout_rate
+    )
+
+    return transformer
+
+
+def train():
+    learning_rate = utils.CustomSchedule(d_model)
+    optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+
+    model = get_model()
+    model.compile(
+        loss=utils.masked_loss,
+        optimizer=optimizer,
+        metrics=[utils.masked_accuracy]
+    )
+
+    #model.fit(train_batches, epochs=20, validation_data=val_batch)
+
 
 
 if __name__ == '__main__':
