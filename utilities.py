@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-import keras
 
 class PositionalEmbedding(tf.keras.layers.Layer):
     def __init__(self, sequence_length, num_features, output_dim, **kwargs):
