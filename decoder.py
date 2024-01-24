@@ -33,13 +33,13 @@ class DecoderLayer(tf.keras.layers.Layer):
 
 
 class Decoder(tf.keras.layers.Layer):
-  def __init__(self, *, num_layers, d_model, num_heads, dff, vocab_size, dropout_rate=0.1):
+  def __init__(self, *, num_layers, d_model, num_heads, dff, input_size, dropout_rate=0.1):
     super().__init__()
 
     self.d_model = d_model
     self.num_layers = num_layers
 
-    self.pos_embedding = PositionalEmbedding(vocab_size, d_model)
+    self.pos_embedding = PositionalEmbedding(input_size, d_model)
 
     self.decoding_layers = [
       DecoderLayer(

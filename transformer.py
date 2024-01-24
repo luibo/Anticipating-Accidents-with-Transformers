@@ -2,8 +2,8 @@ import tensorflow as tf
 from encoder import Encoder
 from decoder import Decoder
 
-class Transformer(tf.keras.layers.Model):
-  def __init__(self, *, num_layers, d_model, num_heads, dff, input_vocab_size, target_vocab_size, dropout_rate):
+class Transformer(tf.keras.Model):
+  def __init__(self, *, num_layers, d_model, num_heads, dff, input_size, target_size, dropout_rate):
     super.__init__()
 
     self.encoder = Encoder(
@@ -11,7 +11,7 @@ class Transformer(tf.keras.layers.Model):
       d_model=d_model,
       num_heads=num_heads,
       dff=dff,
-      vocab_size=input_vocab_size,
+      input_size=input_size,
       dropout_rate=dropout_rate
     )
 
@@ -20,11 +20,11 @@ class Transformer(tf.keras.layers.Model):
       d_model=d_model,
       num_heads=num_heads,
       dff=dff,
-      vocab_size=target_vocab_size,
+      input_size=target_size,
       dropout_rate=dropout_rate
     )
 
-    self.dense_layer = tf.keras.layers.Dense(target_vocab_size)
+    self.dense_layer = tf.keras.layers.Dense(target_size)
 
   def call(self, inputs):
     # To use a Keras model with `.fit` you must pass all your inputs in the
@@ -36,7 +36,7 @@ class Transformer(tf.keras.layers.Model):
     x = self.decoder(x, context)  # (batch_size, target_len, d_model)
 
     # Final linear layer output.
-    logits = self.final_layer(x)  # (batch_size, target_len, target_vocab_size)
+    logits = self.final_layer(x)  # (batch_size, target_len, target_size)
 
     try:
       # Drop the keras mask, so it doesn't scale the losses/metrics.
