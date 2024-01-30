@@ -197,20 +197,25 @@ def run_experiment():
     
     model.save(model_path, save_format='tf')
     model = tf.keras.models.load_model(model_path)
-    _, accuracy = model.evaluate(test_data, test_labels)
+    _, accuracy, recall, precision = model.evaluate(test_data, test_labels)
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
+    print(f"Test recall: {round(recall * 100, 2)}%")
+    print(f"Test precision: {round(precision * 100, 2)}%")
 
     return model
 
 
 def test_model():
     # load data
-    test_data, test_labels, det, id = load_data(test_path, 5, "visualization")
+    test_data, test_labels, det, id = load_data(test_path, test_num, "testing")
 
     # restore model
     model = tf.keras.models.load_model(model_path)
     print(model.summary())
-    x, accuracy = model.evaluate(test_data, test_labels)
+    _, accuracy, recall, precision = model.evaluate(test_data, test_labels)
+    print(f"Test accuracy: {round(accuracy * 100, 2)}%")
+    print(f"Test recall: {round(recall * 100, 2)}%")
+    print(f"Test precision: {round(precision * 100, 2)}%")
 
 
 
