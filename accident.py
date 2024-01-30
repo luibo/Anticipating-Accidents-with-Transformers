@@ -1,4 +1,4 @@
-import cv2
+#import cv2
 import argparse
 import numpy as np
 import os
@@ -17,16 +17,16 @@ import tensorflow as tf
 
 ############### Global Parameters ###############
 # path
-train_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/features/training/'
-test_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/features/testing/'
-demo_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/features/testing/'
+train_path = '/home/l.borchia/dataset/features/training/'
+test_path = '/home/l.borchia/dataset/features/testing/'
+demo_path = '/home/l.borchia/dataset/features/testing/'
 default_model_path = './tmp/video_classifier.weights.h5'
-model_path = './tmp/model.h5'
+model_path = './tmp'
 save_path = './model/'
-video_path = '/home/lborchia/Desktop/Python/Anticipating-Accidents/dataset/videos/testing/positive/'
+video_path = '/home/l.borchia/dataset/videos/testing/positive/'
 
 # batch_number
-train_num = 120
+train_num = 128
 test_num = 46
 
 # Network Parameters
@@ -48,7 +48,7 @@ display_step = 10
 num_layers = 4
 d_model = 128
 dff = 512
-num_heads = 8
+num_heads = 2
 dropout_rate = 0.1
 
 MAX_SEQ_LENGTH = 20
@@ -90,30 +90,29 @@ def load_data(path, num_batch, mode):
 
 def vis(checkpoint_path):
     # load data
-    train_data, train_labels, det, id = load_data(test_path, 5, "visualization")
-
-    # build model
-    model = get_compiled_model(train_data.shape[1:])
-    print(model.summary())
+    data, labels, det, id = load_data(test_path, 5, "visualization")
 
     # restore model
-    print(checkpoint_path)
-    model.load_weights(checkpoint_path)
+    model = tf.keras.models.load_model(model_path)
+    print(model.summary())
 
     # run result
     #file_list = sorted(os.listdir(video_path))
-    for i in train_labels:
+    for i in labels:
         if i == 1 :
+            pred = model.predict(data[i,:,:,:].reshape(1,100,20,4096))
             plt.figure(figsize=(14,5))
-        #    plt.plot(pred[i, 0:90], linewidth = 3.0)
+            plt.plot(pred, linewidth = 3.0)
             plt.ylim(0, 1)
             plt.ylabel('Probability')
             plt.xlabel('Frame')
+            plt.title('Prediction')
+            plt.show()
             file_name = id[i].decode('UTF-8')
             bboxes = det[i]
         #    new_weight = weight[:,:,i] * 255
         #    counter = 0
-            cap = cv2.VideoCapture(video_path + file_name + '.mp4')
+            #cap = cv2.VideoCapture(video_path + file_name + '.mp4')
             ret, frame = cap.read()
 
             while(ret):
@@ -147,7 +146,6 @@ def get_compiled_model(shape):
     sequence_length = 100
     embed_dim = n_input
     dense_dim = 4
-    num_heads = 1
 
     inputs = tf.keras.Input(shape=shape)
     x = utils.PositionalEmbedding(
@@ -193,8 +191,7 @@ def run_experiment():
 
     print(history.history.keys())
     
-    model.save(model_path)
-    #model.load_weights(filepath)
+    model.save(model_path, save_format='tf')
     model = tf.keras.models.load_model(model_path)
     _, accuracy = model.evaluate(test_data, test_labels)
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
@@ -206,12 +203,9 @@ def test_model():
     # load data
     test_data, test_labels, det, id = load_data(test_path, 5, "visualization")
 
-    # build model
-    model = get_compiled_model(test_data.shape[1:])
-    print(model.summary())
-
     # restore model
-    model.load_weights(default_model_path)
+    model = tf.keras.models.load_model(model_path)
+    print(model.summary())
     x, accuracy = model.evaluate(test_data, test_labels)
 
 
