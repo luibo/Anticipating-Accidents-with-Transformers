@@ -160,7 +160,11 @@ def get_compiled_model(shape):
     model.compile(
         optimizer="adam",
         loss="binary_crossentropy",
-        metrics=["accuracy"],
+        metrics=[
+             "accuracy",
+             tf.keras.metrics.Recall(),
+             tf.keras.metrics.Precision()
+        ],
     )
 
     return model
