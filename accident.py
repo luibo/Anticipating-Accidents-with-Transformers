@@ -85,6 +85,13 @@ def load_data(path, num_batch, mode):
         z[(n-1)*batch_size:n*batch_size,:,:,:] = det
         k[(n-1)*batch_size:n*batch_size] = ID
     y = np.argmax(y, axis=1)
+    
+    negatives = [x for x in y if x == 0]
+    print(f'negatives: {len(negatives)}')
+
+    positives = [x for x in y if x == 1]
+    print(f'positives: {len(positives)}')
+
     return x, y, z, k
 
 
@@ -198,9 +205,7 @@ def run_experiment():
     model.save(model_path, save_format='tf')
     model = tf.keras.models.load_model(model_path)
     _, accuracy, recall, precision = model.evaluate(test_data, test_labels)
-    print(f"Test accuracy: {round(accuracy * 100, 2)}%")
-    print(f"Test recall: {round(recall * 100, 2)}%")
-    print(f"Test precision: {round(precision * 100, 2)}%")
+    print_metrics(accuracy, recall, precision)
 
     return model
 
@@ -213,12 +218,25 @@ def test_model():
     model = tf.keras.models.load_model(model_path)
     print(model.summary())
     _, accuracy, recall, precision = model.evaluate(test_data, test_labels)
+    print_metrics(accuracy, recall, precision)
+
+
+def print_predictions():
+    # load data
+    test_data, test_labels, det, id = load_data(test_path, test_num, "testing")
+
+    # restore model
+    model = tf.keras.models.load_model(model_path)
+
+    predictions = model.predict(test_data)
+    print(predictions)
+
+
+def print_metrics(accuracy, recall, precision):
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
     print(f"Test recall: {round(recall * 100, 2)}%")
     print(f"Test precision: {round(precision * 100, 2)}%")
-
-
-
+    
 
 if __name__ == '__main__':
     args = parse_args()
