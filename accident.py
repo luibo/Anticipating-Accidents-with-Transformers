@@ -7,6 +7,7 @@ import logging, os
 import utilities as utils
 from encoder import Encoder
 from tqdm import tqdm
+from sklearn.preprocessing import StandardScaler
 
 logging.disable(logging.WARNING)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -181,7 +182,13 @@ def run_experiment():
     # load data
     train_data, train_labels, _, _ = load_data(train_path, train_num, "training")
     test_data, test_labels, _, _ = load_data(test_path, test_num, "testing")
-    filepath = "./tmp/video_classifier.weights.h5"
+
+    # scale data
+    scaler = StandardScaler()
+    train_data = scaler.fit_transform(train_data.reshape(-1, train_data.shape[-1])).reshape(train_data.shape)
+    test_data = scaler.transform(test_data.reshape(-1, test_data.shape[-1])).reshape(test_data.shape)
+
+    filepath = "./tmp/video_classifier.weights.h5"  
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
         filepath, save_weights_only=True, save_best_only=True, verbose=1
     )
