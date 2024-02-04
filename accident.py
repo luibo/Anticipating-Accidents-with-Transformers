@@ -96,60 +96,6 @@ def load_data(path, num_batch, mode):
     return x, y, z, k
 
 
-def vis(checkpoint_path):
-    # load data
-    data, labels, det, id = load_data(test_path, 5, "visualization")
-
-    # restore model
-    model = tf.keras.models.load_model(model_path)
-    print(model.summary())
-
-    # run result
-    #file_list = sorted(os.listdir(video_path))
-    for i in labels:
-        if i == 1 :
-            pred = model.predict(data[i,:,:,:].reshape(1,100,20,4096))
-            plt.figure(figsize=(14,5))
-            plt.plot(pred, linewidth = 3.0)
-            plt.ylim(0, 1)
-            plt.ylabel('Probability')
-            plt.xlabel('Frame')
-            plt.title('Prediction')
-            plt.show()
-            file_name = id[i].decode('UTF-8')
-            bboxes = det[i]
-        #    new_weight = weight[:,:,i] * 255
-        #    counter = 0
-            #cap = cv2.VideoCapture(video_path + file_name + '.mp4')
-            ret, frame = cap.read()
-
-            while(ret):
-                attention_frame = np.zeros((frame.shape[0],frame.shape[1]), dtype = np.uint8)
-        #        now_weight = new_weight[counter,:]
-        #        new_bboxes = bboxes[counter,:,:]
-        #        index = np.argsort(now_weight)
-        #        for num_box in index:
-        #            if now_weight[num_box] / 255.0 > 0.4:
-        #                cv2.rectangle(np.array(frame), (new_bboxes[num_box,0].astype(int), new_bboxes[num_box,1].astype(int)), (new_bboxes[num_box, 2].astype(int), new_bboxes[num_box, 3].astype(int)), (0, 255, 0), 3)
-        #            else:
-        #                cv2.rectangle(np.array(frame), (new_bboxes[num_box,0].astype(int), new_bboxes[num_box,1].astype(int)), (new_bboxes[num_box, 2].astype(int), new_bboxes[num_box, 3].astype(int)), (255, 0, 0), 2)
-        #            font = cv2.FONT_HERSHEY_SIMPLEX
-        #            cv2.putText(frame, str(round(now_weight[num_box] / 255.0 * 10000) / 10000), (new_bboxes[num_box, 0].astype(int), new_bboxes[num_box, 1].astype(int)), font, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
-        #            attention_frame[int(new_bboxes[num_box, 1]):int(new_bboxes[num_box, 3]), int(new_bboxes[num_box, 0]):int(new_bboxes[num_box, 2])] = now_weight[num_box]
-#
-        #        attention_frame = cv2.applyColorMap(attention_frame, cv2.COLORMAP_HOT)
-        #        dst = cv2.addWeighted(frame,0.6,attention_frame,0.4,0)
-        #        cv2.putText(dst,str(counter+1),(10,30), font, 1,(255,255,255),3)
-        #        cv2.imshow('result',dst)
-        #        c = cv2.waitKey(50)
-        #        ret, frame = cap.read()
-        #        if c == ord('q') and c == 27 and ret:
-        #            break
-        #        counter += 1
-        #    
-        #cv2.destroyAllWindows()
-
-
 def get_compiled_model(shape):
     sequence_length = 100
     embed_dim = n_input
@@ -209,17 +155,22 @@ def run_experiment():
 
     for epoch in range(EPOCHS):
         print(f"\nEpoch {epoch + 1}/{EPOCHS}")
+        iteration = 1
 
         for i in range(0, len(train_data), batch_size):
             batch_data = train_data[i:i+batch_size]
             batch_labels = train_labels[i:i+batch_size]
 
+            print(batch_data.shape)
+            print(iteration)
+            iteration += 1
+
             batch_data = scaler.fit_transform(batch_data.reshape(-1, batch_data.shape[-1])).reshape(batch_data.shape)
 
             model.train_on_batch(batch_data, batch_labels)
 
-        loss, accuracy = model.evaluate(test_data, test_labels)
-        print(f"Test Loss: {loss:.4f}, Test Accuracy: {accuracy:.4f}")
+        """ loss, accuracy, recall, precision = model.evaluate(test_data, test_labels)
+        print(f"Test Loss: {loss:.4f}, Test Accuracy: {accuracy:.4f}") """
 
     
     model.save(model_path, save_format='tf')
