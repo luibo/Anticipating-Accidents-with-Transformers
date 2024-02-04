@@ -207,6 +207,23 @@ def print_metrics(accuracy, recall, precision):
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
     print(f"Test recall: {round(recall * 100, 2)}%")
     print(f"Test precision: {round(precision * 100, 2)}%")
+
+
+def test_with_batches():
+    # load data
+    test_data, test_labels, det, id = load_data(test_path, test_num, "testing")
+    scaler = StandardScaler()
+
+    # restore model
+    model = tf.keras.models.load_model(model_path)
+
+    for i in range(0, len(test_data), batch_size):
+        batch_data = test_data[i:i+batch_size]
+        batch_labels = test_data[i:i+batch_size]
+
+        batch_data = scaler.fit_transform(batch_data.reshape(-1, batch_data.shape[-1])).reshape(batch_data.shape)
+
+        model.test_on_batch(batch_data, batch_labels)
     
 
 if __name__ == '__main__':
