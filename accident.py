@@ -220,7 +220,6 @@ if __name__ == '__main__':
            trained_model = run_experiment()
     elif args.mode == 'test':
            test_model()
-    elif args.mode == 'vis':
-           vis(args.model)
-
+    elif args.mode == 'print':
+           print_predictions
 
