@@ -131,7 +131,8 @@ def run_experiment():
 
     # scale data
     scaler = StandardScaler()
-    #test_data = scaler.transform(test_data.reshape(-1, test_data.shape[-1])).reshape(test_data.shape)
+    train_data = scaler.fit_transform(train_data.reshape(-1, train_data.shape[-1])).reshape(train_data.shape)
+    test_data = scaler.transform(test_data.reshape(-1, test_data.shape[-1])).reshape(test_data.shape)
 
     filepath = "./tmp/video_classifier.weights.h5"  
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
@@ -144,33 +145,15 @@ def run_experiment():
     model = get_compiled_model(train_data.shape[1:])
     print(model.summary())
 
-    #history = model.fit(
-    #    train_data,
-    #    train_labels,
-    #    validation_split=0.15,
-    #    epochs=EPOCHS,
-    #    callbacks=[reduce],
-    #)
-    #print(history.history.keys())
+    history = model.fit(
+        train_data,
+        train_labels,
+        validation_split=0.15,
+        epochs=EPOCHS,
+        callbacks=[reduce],
+    )
 
-    for epoch in range(EPOCHS):
-        print(f"\nEpoch {epoch + 1}/{EPOCHS}")
-        iteration = 1
-
-        for i in range(0, len(train_data), batch_size):
-            batch_data = train_data[i:i+batch_size]
-            batch_labels = train_labels[i:i+batch_size]
-
-            print(batch_data.shape)
-            print(iteration)
-            iteration += 1
-
-            batch_data = scaler.fit_transform(batch_data.reshape(-1, batch_data.shape[-1])).reshape(batch_data.shape)
-
-            model.train_on_batch(batch_data, batch_labels)
-
-        """ loss, accuracy, recall, precision = model.evaluate(test_data, test_labels)
-        print(f"Test Loss: {loss:.4f}, Test Accuracy: {accuracy:.4f}") """
+    print(history.history.keys())
 
     
     model.save(model_path, save_format='tf')
@@ -223,7 +206,8 @@ def test_with_batches():
 
         batch_data = scaler.fit_transform(batch_data.reshape(-1, batch_data.shape[-1])).reshape(batch_data.shape)
 
-        model.test_on_batch(batch_data, batch_labels)
+        loss, accuracy, recall, precision = model.test_on_batch(batch_data, batch_labels)
+        print_metrics(loss, accuracy, recall, precision)
     
 
 if __name__ == '__main__':
