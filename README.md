@@ -5,17 +5,15 @@
 ### Introduction
 
 Anticipating Accidents in Dashcam Videos is initially described in a [ACCV 2016 paper](https://drive.google.com/file/d/0ByuDEGFYmWsbNkVxcUxhdDRVRkU/view?usp=sharing&resourcekey=0-RsYavk2HgV_D-RXpUF7NEg).
-This fork of the original project (from Fu-Hsiang Chan, Yu-Ting Chen, Yu Xiang, Min Sun) tries to implement a transformer in the model.
+This fork of the original project (from Fu-Hsiang Chan, Yu-Ting Chen, Yu Xiang, Min Sun) tries to implement a transformer-based model, instead of the LSTM-based model il the original project.
+
+For the transformer implementation it was taken as a reference [this example](https://keras.io/examples/vision/video_transformers/#building-the-transformerbased-model) that uses a simplified transformer (encoder only) for video classification.
+
+![simple](https://github.com/luibo/Anticipating-Accidents-with-Transformers/assets/26224625/b6b80378-db7f-435c-86ca-01f33ec3ee19)
+
 
 ### Requirements
-
-##### Tensoflow 2.x
-##### Opencv
-##### Matplotlib
-##### Numpy
-
-### Model Flowchart
-
+All the required libraries are given with the env.yml file that can be used to set up a proper conda environment.
 
 ### Dataset & Features
 
@@ -32,9 +30,26 @@ The format of annotation:
 <image name, track_ID, class , x1, y1, x2, y2, 0/1 (no accident/ has accident)>
 
 ### Usage
+It's adviced to create a conda environment using env.yml to have all dependencies ready.
+```
+conda env create -f env.yml
+conda activate aat
+```
 
-#### Run Demo
+For training:
+```
+python accident.py --mode train
+```
 
-#### Training
+For testing:
+```
+python accident.py --mode test
+```
 
-#### Testing
+### Performances
+Model performances are far from optimal, a deeper study of the problem should be done to improve its gerenalization capabilities.
+The metrics that were measured:
+- Accuracy: 71.36%
+- Precision: 54.74%
+- Recall: 67.54%
+
