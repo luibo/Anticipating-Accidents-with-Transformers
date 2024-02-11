@@ -132,7 +132,6 @@ def run_experiment():
     reduce = tf.keras.callbacks.ReduceLROnPlateau(
         monitor="val_loss", factor=0.1, patience=8, min_lr=0.000001
     )
-    tensorboard = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
     model = get_compiled_model(train_data.shape[1:])
     print(model.summary())
@@ -143,7 +142,7 @@ def run_experiment():
         validation_split=0.15,
         epochs=EPOCHS,
         batch_size=16,
-        callbacks=[reduce, tensorboard],
+        callbacks=[reduce],
     )
 
     print(history.history.keys())
