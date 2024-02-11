@@ -36,7 +36,7 @@ n_classes = 2 # has accident or not
 n_frames = 100 # number of frame in each video
 
 # Parameters
-learning_rate = 0.000001
+learning_rate = 0.00001
 batch_size = 10
 
 # Transformer parameters
@@ -148,6 +148,8 @@ def run_experiment():
 
     print(history.history.keys())
 
+    plot_history(history)
+
     model.save(model_path, save_format='tf')
     model = tf.keras.models.load_model(model_path)
     _, accuracy, recall, precision = model.evaluate(test_data, test_labels)
@@ -174,7 +176,29 @@ def print_metrics(accuracy, recall, precision):
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
     print(f"Test recall: {round(recall * 100, 2)}%")
     print(f"Test precision: {round(precision * 100, 2)}%")
+
+
+def plot_history(history):
+    acc = history.history["accuracy"]
+    loss = history.history["loss"]
+    val_loss = history.history["val_loss"]
+    val_accuracy = history.history["val_accuracy"]
     
+    x = range(1, len(acc) + 1)
+    
+    plt.figure(figsize=(12,5))
+    plt.subplot(1, 2, 1)
+    plt.plot(x, acc, "b", label="traning_acc")
+    plt.plot(x, val_accuracy, "r", label="traning_acc")
+    plt.title("Accuracy")
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(x, loss, "b", label="traning_acc")
+    plt.plot(x, val_loss, "r", label="traning_acc")
+    plt.title("Loss")
+
+    plt.savefig("accident_transformer.png")
+
 
 if __name__ == '__main__':
     args = parse_args()
