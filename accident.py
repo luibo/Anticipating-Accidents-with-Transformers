@@ -1,4 +1,3 @@
-#import cv2
 import argparse
 import numpy as np
 import os
@@ -8,16 +7,15 @@ import utilities as utils
 from encoder import Encoder
 from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler
+import datetime
 
 logging.disable(logging.WARNING)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-import tensorflow.compat.v1 as tf1
 import tensorflow as tf
-#tf1.disable_v2_behavior()
+
 
 ############### Global Parameters ###############
-# path
 train_path = '/home/l.borchia/dataset/features/training/'
 test_path = '/home/l.borchia/dataset/features/testing/'
 demo_path = '/home/l.borchia/dataset/features/testing/'
@@ -25,38 +23,26 @@ default_model_path = './tmp/video_classifier.weights.h5'
 model_path = './tmp'
 save_path = './model/'
 video_path = '/home/l.borchia/dataset/videos/testing/positive/'
+log_path = './logs'
 
 # batch_number
-train_num = 128
-test_num = 46
+train_num = 45
+test_num = 28
 
 # Network Parameters
 n_input = 4096 # fc6 or fc7(1*4096)
 n_detection = 20 # number of object of each image (include image features)
-n_hidden = 512 # hidden layer num of LSTM
-n_img_hidden = 256 # embedding image features 
-n_att_hidden = 256 # embedding object features
 n_classes = 2 # has accident or not
 n_frames = 100 # number of frame in each video
 
 # Parameters
-learning_rate = 0.0001
-n_epochs = 30
+learning_rate = 0.000001
 batch_size = 10
-display_step = 10
 
 # Transformer parameters
-num_layers = 4
-d_model = 128
-dff = 512
 num_heads = 2
-dropout_rate = 0.1
 
-MAX_SEQ_LENGTH = 20
-NUM_FEATURES = 1024
-IMG_SIZE = 128
-
-EPOCHS = 20
+EPOCHS = 40
 
 def parse_args():
     """Parse input arguments."""
@@ -110,9 +96,10 @@ def get_compiled_model(shape):
     x = tf.keras.layers.Dropout(0.5, name="dropout")(x)
     outputs = tf.keras.layers.Dense(1, activation="sigmoid", name="output")(x)
     model = tf.keras.Model(inputs, outputs)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     model.compile(
-        optimizer="adam",
+        optimizer=optimizer,
         loss="binary_crossentropy",
         metrics=[
              "accuracy",
@@ -131,31 +118,37 @@ def run_experiment():
 
     # scale data
     scaler = StandardScaler()
+    
     train_data = scaler.fit_transform(train_data.reshape(-1, train_data.shape[-1])).reshape(train_data.shape)
     test_data = scaler.transform(test_data.reshape(-1, test_data.shape[-1])).reshape(test_data.shape)
+    
+    filepath = "./tmp/video_classifier.weights.h5"
 
-    filepath = "./tmp/video_classifier.weights.h5"  
+    # keras callbacks
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
         filepath, save_weights_only=True, save_best_only=True, verbose=1
     )
     reduce = tf.keras.callbacks.ReduceLROnPlateau(
         monitor="val_loss", factor=0.1, patience=8, min_lr=0.000001
     )
+    tensorboard = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
     model = get_compiled_model(train_data.shape[1:])
     print(model.summary())
+
+    log_dir = log_path + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     history = model.fit(
         train_data,
         train_labels,
         validation_split=0.15,
         epochs=EPOCHS,
-        callbacks=[reduce],
+        batch_size=16,
+        callbacks=[reduce, tensorboard],
     )
 
     print(history.history.keys())
 
-    
     model.save(model_path, save_format='tf')
     model = tf.keras.models.load_model(model_path)
     _, accuracy, recall, precision = model.evaluate(test_data, test_labels)
@@ -167,7 +160,10 @@ def run_experiment():
 def test_model():
     # load data
     test_data, test_labels, det, id = load_data(test_path, test_num, "testing")
-
+    
+    scaler = StandardScaler()
+    test_data = scaler.fit_transform(test_data.reshape(-1, test_data.shape[-1])).reshape(test_data.shape)
+    
     # restore model
     model = tf.keras.models.load_model(model_path)
     print(model.summary())
@@ -175,39 +171,10 @@ def test_model():
     print_metrics(accuracy, recall, precision)
 
 
-def print_predictions():
-    # load data
-    test_data, test_labels, det, id = load_data(test_path, test_num, "testing")
-
-    # restore model
-    model = tf.keras.models.load_model(model_path)
-
-    predictions = model.predict(test_data)
-    print(predictions)
-
-
 def print_metrics(accuracy, recall, precision):
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
     print(f"Test recall: {round(recall * 100, 2)}%")
     print(f"Test precision: {round(precision * 100, 2)}%")
-
-
-def test_with_batches():
-    # load data
-    test_data, test_labels, det, id = load_data(test_path, test_num, "testing")
-    scaler = StandardScaler()
-
-    # restore model
-    model = tf.keras.models.load_model(model_path)
-
-    for i in range(0, len(test_data), batch_size):
-        batch_data = test_data[i:i+batch_size]
-        batch_labels = test_data[i:i+batch_size]
-
-        batch_data = scaler.fit_transform(batch_data.reshape(-1, batch_data.shape[-1])).reshape(batch_data.shape)
-
-        loss, accuracy, recall, precision = model.test_on_batch(batch_data, batch_labels)
-        print_metrics(loss, accuracy, recall, precision)
     
 
 if __name__ == '__main__':
@@ -221,6 +188,3 @@ if __name__ == '__main__':
            trained_model = run_experiment()
     elif args.mode == 'test':
            test_model()
-    elif args.mode == 'print':
-           print_predictions
-
