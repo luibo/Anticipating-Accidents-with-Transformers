@@ -123,6 +123,7 @@ def run_experiment():
     test_data = scaler.transform(test_data.reshape(-1, test_data.shape[-1])).reshape(test_data.shape)
     
     filepath = "./tmp/video_classifier.weights.h5"
+    log_dir = log_path + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     # keras callbacks
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
@@ -135,8 +136,6 @@ def run_experiment():
 
     model = get_compiled_model(train_data.shape[1:])
     print(model.summary())
-
-    log_dir = log_path + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     history = model.fit(
         train_data,
